@@ -6,10 +6,8 @@
  *
  */
 
-#include <cv.h>
-
 #include <iostream>
-#include <vector>
+#include <list>
 #include <opencv2/opencv.hpp>
 #include <opencv2/stitching/stitcher.hpp>
 
@@ -17,8 +15,23 @@ using namespace std;
 using namespace cv;
 
 static void usage() {
-  std::cout <<
-  "Using OpenCV version " << CV_VERSION << "\n"<<std::endl;
+  cout << "Using OpenCV version " << CV_VERSION << "\n" << endl;
+}
+
+int stitch(vector<Mat> pan_pics, Mat pano) {
+  Mat result;
+
+  cout << "stitch" << endl;
+
+  Stitcher stitcher = Stitcher::createDefault(true);
+  Stitcher::Status status = stitcher.stitch(pan_pics, result);
+
+  if (result.total () >= pano.total()) {
+	cout << "update" << endl;
+    result.copyTo(pano);
+  }
+
+  return 0;
 }
 
 int main(int argc, char** argv) {
@@ -63,53 +76,48 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  Mat pano;
+
+  Mat frame;  // the current frame
+  Mat pano;  // the calculated panorama
+  vector<Mat> pan_pics;  // vector for storing the stitcher input
 
   cap >> pano;
 
-  namedWindow("pano", CV_WINDOW_NORMAL);
+  namedWindow("frame", CV_WINDOW_NORMAL); // current frame
+  namedWindow("pano", CV_WINDOW_NORMAL);  // calculated panorama
 
-  for (;;) {
+  // main loop
+  for (int i=0;;i++) {
 
-    Mat frame1, frame2, frame3;
-    Mat result;
-    
-    cap >> frame1;
-    cap >> frame2;
-    cap >> frame3;
+	cap >> frame;
+	cout << i << endl;
 
-    vector<Mat> vec;
-    vec.push_back(pano);
-    vec.push_back(frame1);
- 
-    cout << "frame1: " << frame1.cols << "x" << frame1.rows << endl;
-    cout << "pano: " << pano.cols << "x"<< pano.rows << endl;
+	// every 10 frames save a new frame for the stitcher
+    if (i%10 == 0) {
+			Mat temp;
+			temp = frame.clone();
 
-    Stitcher stitcher = Stitcher::createDefault(true);
-    Stitcher::Status status = stitcher.stitch(vec, result);
+			if (pan_pics.size() == 3) {
+			  pan_pics.erase(pan_pics.begin());
+			}
+			pan_pics.push_back(temp);
 
-    cout << status << endl;
-    cout << "result: " << result.cols << "x" << result.rows << endl;
+			// if 30th frame then stitch
+			if (i % 30 == 0) {
+				//TODO: signal stitcher instead
+				stitch(pan_pics, pano);
+			}
+		}
 
-    cout << result.total() << " " <<  pano.total() << endl;
-
-    if (result.total() >= pano.total()) {
-      result.copyTo(pano);
-      cout << "pew pew" << endl;
-    }
- 
-    imshow("pano", pano);
-
-    waitKey(100);
-    cout << "---" << endl;
+    // show images
+    imshow("frame", frame);
+    imshow("panorama", pano);
 
   }
 
   return 0;
 
 }
-  
-
 
 /*
 
@@ -118,7 +126,7 @@ int main(int argc, char** argv) {
 
   std::vector<std::vector<cv::Point> > contours;
 
-  namedWindow("frame", CV_WINDOW_NORMAL);
+ 
   namedWindow("foreground", CV_WINDOW_NORMAL);
   namedWindow("background", CV_WINDOW_NORMAL);
 //  namedWindow("contour", CV_WINDOW_NORMAL);
@@ -143,7 +151,7 @@ int main(int argc, char** argv) {
     addWeighted(frame, 1, contour, 0.5, 0, frame);
     drawContours(frame, contours, -1, Scalar(0,0,0), 1);
 
-    imshow("frame", frame);
+
     imshow("foreground", foreground);
     imshow("background", background);
 //    imshow("contour", contour);
