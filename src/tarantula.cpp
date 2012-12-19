@@ -7,7 +7,7 @@
  */
 
 #include <iostream>
-#include <list>
+#include <vector>
 #include <opencv2/opencv.hpp>
 #include <opencv2/stitching/stitcher.hpp>
 
@@ -18,21 +18,6 @@ static void usage() {
   cout << "Using OpenCV version " << CV_VERSION << "\n" << endl;
 }
 
-int stitch(vector<Mat> pan_pics, Mat pano) {
-  Mat result;
-
-  cout << "stitch" << endl;
-
-  Stitcher stitcher = Stitcher::createDefault(true);
-  Stitcher::Status status = stitcher.stitch(pan_pics, result);
-
-  if (result.total () >= pano.total()) {
-	cout << "update" << endl;
-    result.copyTo(pano);
-  }
-
-  return 0;
-}
 
 int main(int argc, char** argv) {
 
@@ -76,94 +61,44 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-
   Mat frame;  // the current frame
-  Mat pano;  // the calculated panorama
-  vector<Mat> pan_pics;  // vector for storing the stitcher input
 
-  cap >> pano;
+  vector<string> detectors, detector_names;
+  detectors.push_back("/home/thomas/cv/datasets/person.xml");
+  detector_names.push_back("person");
 
   namedWindow("frame", CV_WINDOW_NORMAL); // current frame
-  namedWindow("pano", CV_WINDOW_NORMAL);  // calculated panorama
+
+  LatentSvmDetector detector = LatentSvmDetector(detectors, detector_names);
+  vector<LatentSvmDetector::ObjectDetection> detections;
+
 
   // main loop
   for (int i=0;;i++) {
 
 	cap >> frame;
-	cout << i << endl;
 
-	// every 10 frames save a new frame for the stitcher
-    if (i%10 == 0) {
-			Mat temp;
-			temp = frame.clone();
+	detections.clear();
 
-			if (pan_pics.size() == 3) {
-			  pan_pics.erase(pan_pics.begin());
-			}
-			pan_pics.push_back(temp);
+	detector.detect(frame, detections, 0.5f, 5);
 
-			// if 30th frame then stitch
-			if (i % 30 == 0) {
-				//TODO: signal stitcher instead
-				stitch(pan_pics, pano);
-			}
-		}
+	cout << detections.size() << endl;
+
+    const vector<string> classNames = detector.getClassNames();
+
+    for( size_t i = 0; i < detections.size(); i++ )
+    {
+        const LatentSvmDetector::ObjectDetection& od = detections[i];
+        rectangle(frame, od.rect, Scalar(0,0,255), 1);
+    }
+
 
     // show images
     imshow("frame", frame);
-    imshow("panorama", pano);
-
+    
+    cvWaitKey(100);
   }
 
   return 0;
 
 }
-
-/*
-
-  Mat frame, foreground, background, contour;
-  BackgroundSubtractorMOG2 bg(3000, 16, false);
-
-  std::vector<std::vector<cv::Point> > contours;
-
- 
-  namedWindow("foreground", CV_WINDOW_NORMAL);
-  namedWindow("background", CV_WINDOW_NORMAL);
-//  namedWindow("contour", CV_WINDOW_NORMAL);
-
-  for (;;) {
-    cap >> frame;
-
-    if (frame.empty()) {
-      break;
-    }
-
-    bg.operator() (frame, foreground, 0.001);
-    bg.getBackgroundImage(background); 
-
-//    erode(foreground, foreground, Mat(), Point(-1, -1), 2);
-//    dilate(foreground, foreground, Mat(), Point(-1, -1), 2);
-
-    frame.copyTo(contour);
-    contour &= Scalar(0, 0, 0);
-    findContours(foreground, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
-    drawContours(contour, contours, -1, Scalar(0,0,255), -1);
-    addWeighted(frame, 1, contour, 0.5, 0, frame);
-    drawContours(frame, contours, -1, Scalar(0,0,0), 1);
-
-
-    imshow("foreground", foreground);
-    imshow("background", background);
-//    imshow("contour", contour);
-
-    int c = waitKey(30);
-    if (c == 'q' || c == 'Q' || (c & 255) == 27) {
-      break;
-    }
-  }
-
-  return 0;
-
-}
-
-*/
