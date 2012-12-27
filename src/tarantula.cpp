@@ -8,6 +8,9 @@
 
 #include <iostream>
 #include <vector>
+#include <stdio.h>
+#include <sys/time.h>
+
 #include <opencv2/opencv.hpp>
 #include <opencv2/stitching/stitcher.hpp>
 
@@ -18,9 +21,31 @@ static void usage() {
   cout << "Using OpenCV version " << CV_VERSION << "\n" << endl;
 }
 
+float getFps (timespec start, timespec stop) {
+  timespec diff;
+  float fps = -1;
+  
+  if ((stop.tv_nsec - start.tv_nsec) < 0) {
+    diff.tv_sec = stop.tv_sec - start.tv_nsec - 1;
+    diff.tv_nsec = 1000000000 + stop.tv_nsec - start.tv_nsec;
+  } else {
+    diff.tv_sec = stop.tv_sec - start.tv_sec;
+    diff.tv_nsec = stop.tv_nsec - start.tv_nsec;
+  }
+
+  fps = (float)1000000000 / (diff.tv_sec * 1000000000 + diff.tv_nsec);
+
+  return fps;
+}
 
 int main(int argc, char** argv) {
 
+  // time measurement
+  timespec time_now;
+  timespec time_past;
+  char fps[10] = "";
+
+  // video source
   VideoCapture cap;
 
   if (argc > 1) {
@@ -64,38 +89,35 @@ int main(int argc, char** argv) {
   Mat frame;  // the current frame
 
   vector<string> detectors, detector_names;
-  detectors.push_back("/home/thomas/cv/datasets/person.xml");
+  detectors.push_back("/home/thomas/cv/tarantula/person.xml");
   detector_names.push_back("person");
 
-  namedWindow("frame", CV_WINDOW_NORMAL); // current frame
+  namedWindow("frame", CV_WINDOW_AUTOSIZE); // current frame
 
-  LatentSvmDetector detector = LatentSvmDetector(detectors, detector_names);
-  vector<LatentSvmDetector::ObjectDetection> detections;
-
+//  LatentSvmDetector detector = LatentSvmDetector(detectors, detector_names);
+//  vector<LatentSvmDetector::ObjectDetection> detections;
+  
+  cout << cap.get(CV_CAP_PROP_FRAME_WIDTH) << " x " << cap.get(CV_CAP_PROP_FRAME_HEIGHT) << endl;
+  
+//  cap.set(CV_CAP_PROP_FRAME_WIDTH, 1024);
+//  cap.set(CV_CAP_PROP_FRAME_HEIGHT, 768);
 
   // main loop
   for (int i=0;;i++) {
+    // write time
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time_past);
 
-	cap >> frame;
-
-	detections.clear();
-
-	detector.detect(frame, detections, 0.5f, 5);
-
-	cout << detections.size() << endl;
-
-    const vector<string> classNames = detector.getClassNames();
-
-    for( size_t i = 0; i < detections.size(); i++ )
-    {
-        const LatentSvmDetector::ObjectDetection& od = detections[i];
-        rectangle(frame, od.rect, Scalar(0,0,255), 1);
-    }
+      cap >> frame;
 
 
-    // show images
-    imshow("frame", frame);
+      // show images
+      imshow("frame", frame);
     
+    // calculate fps and display
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time_now);
+    sprintf(fps, "%f fps", getFps(time_past, time_now));
+    displayOverlay("frame", fps, 0);
+
     cvWaitKey(100);
   }
 
