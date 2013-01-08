@@ -21,10 +21,8 @@ static void usage() {
   cout << "Using OpenCV version " << CV_VERSION << "\n" << endl;
 }
 
-float getFps (timespec start, timespec stop) {
-  timespec diff;
-  float fps = -1;
-  
+void calcTimeDiff (timespec start, timespec stop, timespec diff) {
+    
   if ((stop.tv_nsec - start.tv_nsec) < 0) {
     diff.tv_sec = stop.tv_sec - start.tv_nsec - 1;
     diff.tv_nsec = 1000000000 + stop.tv_nsec - start.tv_nsec;
@@ -33,6 +31,12 @@ float getFps (timespec start, timespec stop) {
     diff.tv_nsec = stop.tv_nsec - start.tv_nsec;
   }
 
+  return;
+}
+
+float getFps (timespec diff) {
+  float fps = -1;
+
   fps = (float)1000000000 / (diff.tv_sec * 1000000000 + diff.tv_nsec);
 
   return fps;
@@ -40,41 +44,65 @@ float getFps (timespec start, timespec stop) {
 
 int main(int argc, char** argv) {
 
+  bool use_gui = false;
+
   // time measurement
   timespec time_now;
   timespec time_past;
+  timespec diff;
   char fps[10] = "";
+  unsigned long int init_time;
+
+  clock_gettime(CLOCK_MONOTONIC, &time_now);
+  init_time = time_now.tv_sec;
 
   // video source
   VideoCapture cap;
 
   if (argc > 1) {
     for (int i = 1; i < argc; i++) {
+      
+      // -d <deviceid>
+      if (string(argv[i]) == "-d") {
+        int device_id = -1;
+        sscanf(argv[i+1], "%i", &device_id);
+        cap.open(device_id);
+        i++;
+
+        if (cap.isOpened() != true) {
+          cerr << "Error: Device " << device_id << " could not be opened.\n exiting..." << endl;
+          return -1;
+        }
+      }
 
       // -f <filename>
-      if (string(argv[i]) == "-f") {
+      else if (string(argv[i]) == "-f") {
         string filename = string(argv[i+1]);
         cap.open(filename);
         i++;
 
         if (cap.isOpened() != true) {
           cerr << "Error: \"" << filename << "\" could not be opened.\n exiting..." << endl;
-        }
-      }
-
-        // noise
-//        else if (string(argv[i]) == 
-
-        // history
- 
-        // mode
-
-        else {
-          cerr << "Error: unknown parameter \"" << string(argv[i]) << "\"\n";
-          usage();
           return -1;
         }
-     }
+      }
+      // -g (gui)
+      else if (string(argv[i]) == "-g") {
+        use_gui = true;
+      }
+
+      // noise
+
+      // history
+ 
+      // mode
+
+      else {
+        cerr << "Error: unknown parameter \"" << string(argv[i]) << "\"\n";
+        usage();
+        return -1;
+      }
+    }
   }
         
   if (cap.isOpened() != true) {
@@ -92,7 +120,9 @@ int main(int argc, char** argv) {
   detectors.push_back("/home/thomas/cv/tarantula/person.xml");
   detector_names.push_back("person");
 
-  namedWindow("frame", CV_WINDOW_AUTOSIZE); // current frame
+  if (use_gui == true) {
+    namedWindow("frame", CV_WINDOW_AUTOSIZE); // current frame
+  }
 
 //  LatentSvmDetector detector = LatentSvmDetector(detectors, detector_names);
 //  vector<LatentSvmDetector::ObjectDetection> detections;
@@ -105,18 +135,22 @@ int main(int argc, char** argv) {
   // main loop
   for (int i=0;;i++) {
     // write time
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time_past);
+    clock_gettime(CLOCK_MONOTONIC, &time_past);
 
-      cap >> frame;
+    if (cap.read(frame) == NULL) {
+      continue;
+    }
 
-
-      // show images
+    // show images
+    if (use_gui == true) {
       imshow("frame", frame);
+    }
     
     // calculate fps and display
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time_now);
-    sprintf(fps, "%f fps", getFps(time_past, time_now));
+    clock_gettime(CLOCK_MONOTONIC, &time_now);
+    sprintf(fps, "%.2f t-fps, frame: %i, time: %li s", getFps(diff), i, time_now.tv_sec-init_time);
     displayOverlay("frame", fps, 0);
+    //cout << fps << endl;
 
     cvWaitKey(100);
   }
