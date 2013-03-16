@@ -12,7 +12,7 @@
 #include <sys/time.h>
 
 #include <opencv2/opencv.hpp>
-#include <opencv2/stitching/stitcher.hpp>
+//#include <opencv2/stitching/stitcher.hpp>
 
 using namespace std;
 using namespace cv;
