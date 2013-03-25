@@ -12,7 +12,6 @@
 #include <sys/time.h>
 
 #include <opencv2/opencv.hpp>
-//#include <opencv2/stitching/stitcher.hpp>
 
 using namespace std;
 using namespace cv;
@@ -115,13 +114,20 @@ int main(int argc, char** argv) {
   }
 
   Mat frame;  // the current frame
+  Mat foreground, background;
 
-  vector<string> detectors, detector_names;
-  detectors.push_back("/home/thomas/cv/tarantula/person.xml");
-  detector_names.push_back("person");
+  BackgroundSubtractorMOG2 bg(300, 16, false);
+
+  std::vector<std::vector<cv::Point> > contours;
+
+//  vector<string> detectors, detector_names;
+//  detectors.push_back("/home/thomas/cv/tarantula/person.xml");
+//  detector_names.push_back("person");
 
   if (use_gui == true) {
     namedWindow("frame", CV_WINDOW_AUTOSIZE); // current frame
+    namedWindow("foreground", CV_WINDOW_NORMAL);
+    namedWindow("background", CV_WINDOW_NORMAL);
   }
 
 //  LatentSvmDetector detector = LatentSvmDetector(detectors, detector_names);
@@ -129,8 +135,8 @@ int main(int argc, char** argv) {
   
   cout << cap.get(CV_CAP_PROP_FRAME_WIDTH) << " x " << cap.get(CV_CAP_PROP_FRAME_HEIGHT) << endl;
   
-//  cap.set(CV_CAP_PROP_FRAME_WIDTH, 1024);
-//  cap.set(CV_CAP_PROP_FRAME_HEIGHT, 768);
+  cap.set(CV_CAP_PROP_FRAME_WIDTH, 1024);
+  cap.set(CV_CAP_PROP_FRAME_HEIGHT, 768);
 
   // main loop
   for (int i=0;;i++) {
@@ -141,18 +147,32 @@ int main(int argc, char** argv) {
       continue;
     }
 
+    bg.operator() (frame, foreground);
+    bg.getBackgroundImage(background);
+
+    erode(foreground, foreground, Mat(), Point(-1, -1), 1);
+    dilate(foreground, foreground, Mat(), Point(-1, -1), 1);
+
+    findContours(foreground, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
+    drawContours(frame, contours, -1, Scalar(0,0,255), 2);
+
     // show images
     if (use_gui == true) {
       imshow("frame", frame);
+      imshow("foreground", foreground);
+      imshow("background", background);
     }
     
     // calculate fps and display
     clock_gettime(CLOCK_MONOTONIC, &time_now);
     sprintf(fps, "%.2f t-fps, frame: %i, time: %li s", getFps(diff), i, time_now.tv_sec-init_time);
-    displayOverlay("frame", fps, 0);
+    //displayOverlay("frame", fps, 0);
     //cout << fps << endl;
 
-    cvWaitKey(100);
+    int c = waitKey(30);
+    if (c == 'q' || c == 'Q' || (c & 255) == 27) {
+    break;
+    }
   }
 
   return 0;
