@@ -150,11 +150,21 @@ int main(int argc, char** argv) {
     bg.operator() (frame, foreground);
     bg.getBackgroundImage(background);
 
-    erode(foreground, foreground, Mat(), Point(-1, -1), 1);
-    dilate(foreground, foreground, Mat(), Point(-1, -1), 1);
+    erode(foreground, foreground, Mat(), Point(-1, -1), 3);
+    dilate(foreground, foreground, Mat(), Point(-1, -1), 3);
 
     findContours(foreground, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
     drawContours(frame, contours, -1, Scalar(0,0,255), 2);
+
+    double area;
+    int size = contours.size();
+
+    for(int i = 0; i < size; i++) {
+      area = contourArea(contours[i]);
+      if (area > 1000) {
+        cout << i+1 << "/" << size << ": " << area << endl;
+      }
+    }
 
     // show images
     if (use_gui == true) {
