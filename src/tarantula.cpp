@@ -13,7 +13,7 @@
 
 #include <opencv2/opencv.hpp>
 
-#include "vision.h"
+//#include "vision.h"
 
 
 using namespace std;
@@ -179,7 +179,7 @@ int main(int argc, char** argv) {
     // calculate fps and display
     clock_gettime(CLOCK_MONOTONIC, &time_now);
     sprintf(fps, "%.2f t-fps, frame: %i, time: %li s", getFps(diff), i, time_now.tv_sec-init_time);
-    //displayOverlay("frame", fps, 0);
+    displayOverlay("frame", fps, 0);
     //cout << fps << endl;
 
     int c = waitKey(30);
