@@ -140,6 +140,8 @@ int main(int argc, char** argv) {
   
   cap.set(CV_CAP_PROP_FRAME_WIDTH, 1024);
   cap.set(CV_CAP_PROP_FRAME_HEIGHT, 768);
+  cap.set(CV_CAP_PROP_FPS, 30);
+  //cap.set();
 
   // main loop
   for (int i=0;;i++) {
