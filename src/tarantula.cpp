@@ -48,6 +48,7 @@ float getFps (double diff) {
 int main(int argc, char** argv) {
 
   bool use_gui = false;
+  double learningRate = -1;
 
   // time measurement
   timespec time_init;
@@ -95,7 +96,11 @@ int main(int argc, char** argv) {
 
       // noise
 
-      // history
+      // learning rate
+	  else if (string(argv[i]) == "-l") {
+        sscanf(argv[i+1], "%lf", &learningRate);
+		i++;
+      }  
  
       // mode
 
@@ -152,7 +157,7 @@ int main(int argc, char** argv) {
       continue;
     }
 
-    bg.operator() (frame, foreground);
+    bg.operator() (frame, foreground, learningRate);
     if (use_gui == true) bg.getBackgroundImage(background);
 
     erode(foreground, foreground, Mat(), Point(-1, -1), 3);
@@ -165,18 +170,29 @@ int main(int argc, char** argv) {
 
     double area;
     int size = contours.size();
+	vector<vector<Point> > contours_poly( contours.size() );
+	vector<RotatedRect> boundRect( contours.size() ) ;
 
     for(int i = 0; i < size; i++) {
       area = contourArea(contours[i]);
       if (area > 2000) {
 //        cout << i+1 << "/" << size << ": " << area << endl;
-        if (use_gui == true) drawContours(frame, contours, i, Scalar(0,255,255), 2);
-        
+        if (use_gui == true) {
+		  drawContours(frame, contours, i, Scalar(0,255,255), 2);
+		  approxPolyDP( Mat(contours[i]), contours_poly[i], 3, true );
+		  boundRect[i] = minAreaRect( contours_poly[i] );
+        }
       }
     }
 
     // show images
     if (use_gui == true) {
+	
+	  for( int i = 0; i< contours.size(); i++ ) {
+        //ellipse( frame, boundRect[i], Scalar(255,255,255), 2, 8 );
+	    circle( frame, boundRect[i].center, 6, Scalar(0, 255, 0), 3); 
+      }
+		
       imshow("frame", frame);
 //      imshow("foreground", foreground);
       imshow("background", background);
@@ -185,7 +201,7 @@ int main(int argc, char** argv) {
     // calculate fps and display
     clock_gettime(CLOCK_MONOTONIC, &time_now);
 	
-    sprintf(fps, "%.2f fps, frame: %i, time: %.3f s", getFps(calcTimeDiff (time_past, time_now)), i, calcTimeDiff (time_init, time_now));
+    sprintf(fps, "%.2f fps, frame: %i, time: %.3f s, l: %.2e", getFps(calcTimeDiff (time_past, time_now)), i, calcTimeDiff (time_init, time_now), learningRate);
     if (use_gui == true) {
 	  displayOverlay("frame", fps, 0);
 	}
