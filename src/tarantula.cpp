@@ -23,23 +23,24 @@ static void usage() {
   cout << "Using OpenCV version " << CV_VERSION << "\n" << endl;
 }
 
-void calcTimeDiff (timespec start, timespec stop, timespec diff) {
+double calcTimeDiff (timespec start, timespec stop) {
     
-  if ((stop.tv_nsec - start.tv_nsec) < 0) {
-    diff.tv_sec = stop.tv_sec - start.tv_nsec - 1;
-    diff.tv_nsec = 1000000000 + stop.tv_nsec - start.tv_nsec;
-  } else {
-    diff.tv_sec = stop.tv_sec - start.tv_sec;
-    diff.tv_nsec = stop.tv_nsec - start.tv_nsec;
-  }
-
-  return;
+  double startd = 0.0;
+  double stopd = 0.0;
+  double diff = 0.0;
+  
+  startd =  start.tv_sec + start.tv_nsec / 1000000000.0 ;
+  stopd =  stop.tv_sec + stop.tv_nsec / 1000000000.0 ;
+  
+  diff = stopd - startd;
+  
+  return diff;
 }
 
-float getFps (timespec diff) {
+float getFps (double diff) {
   float fps = -1;
 
-  fps = (float)1000000000 / (diff.tv_sec * 1000000000 + diff.tv_nsec);
+  fps = 1 / diff;
 
   return fps;
 }
@@ -49,14 +50,13 @@ int main(int argc, char** argv) {
   bool use_gui = false;
 
   // time measurement
+  timespec time_init;
   timespec time_now;
   timespec time_past;
-  timespec diff;
   char fps[10] = "";
-  unsigned long int init_time;
 
+  clock_gettime(CLOCK_MONOTONIC, &time_init);
   clock_gettime(CLOCK_MONOTONIC, &time_now);
-  init_time = time_now.tv_sec;
 
   // video source
   VideoCapture cap;
@@ -129,7 +129,7 @@ int main(int argc, char** argv) {
 
   if (use_gui == true) {
     namedWindow("frame", CV_WINDOW_AUTOSIZE); // current frame
-    namedWindow("foreground", CV_WINDOW_NORMAL);
+//    namedWindow("foreground", CV_WINDOW_NORMAL);
     namedWindow("background", CV_WINDOW_NORMAL);
   }
 
@@ -140,7 +140,7 @@ int main(int argc, char** argv) {
   
   cap.set(CV_CAP_PROP_FRAME_WIDTH, 1024);
   cap.set(CV_CAP_PROP_FRAME_HEIGHT, 768);
-  cap.set(CV_CAP_PROP_FPS, 30);
+//  cap.set(CV_CAP_PROP_FPS, 30);
   //cap.set();
 
   // main loop
@@ -153,38 +153,45 @@ int main(int argc, char** argv) {
     }
 
     bg.operator() (frame, foreground);
-    bg.getBackgroundImage(background);
+    if (use_gui == true) bg.getBackgroundImage(background);
 
     erode(foreground, foreground, Mat(), Point(-1, -1), 3);
     dilate(foreground, foreground, Mat(), Point(-1, -1), 3);
 
-    findContours(foreground, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
-    drawContours(frame, contours, -1, Scalar(0,0,255), 2);
+	if (use_gui == true) {
+      findContours(foreground, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
+      drawContours(frame, contours, -1, Scalar(0,0,255), 1);
+	}
 
     double area;
     int size = contours.size();
 
     for(int i = 0; i < size; i++) {
       area = contourArea(contours[i]);
-      if (area > 1000) {
-        cout << i+1 << "/" << size << ": " << area << endl;
+      if (area > 2000) {
+//        cout << i+1 << "/" << size << ": " << area << endl;
+        if (use_gui == true) drawContours(frame, contours, i, Scalar(0,255,255), 2);
+        
       }
     }
 
     // show images
     if (use_gui == true) {
       imshow("frame", frame);
-      imshow("foreground", foreground);
+//      imshow("foreground", foreground);
       imshow("background", background);
     }
     
     // calculate fps and display
     clock_gettime(CLOCK_MONOTONIC, &time_now);
-    sprintf(fps, "%.2f t-fps, frame: %i, time: %li s", getFps(diff), i, time_now.tv_sec-init_time);
-    displayOverlay("frame", fps, 0);
-    //cout << fps << endl;
+	
+    sprintf(fps, "%.2f fps, frame: %i, time: %.3f s", getFps(calcTimeDiff (time_past, time_now)), i, calcTimeDiff (time_init, time_now));
+    if (use_gui == true) {
+	  displayOverlay("frame", fps, 0);
+	}
+    cout << fps << endl;
 
-    int c = waitKey(30);
+    int c = waitKey(1);
     if (c == 'q' || c == 'Q' || (c & 255) == 27) {
     break;
     }
