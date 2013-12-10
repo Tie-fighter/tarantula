@@ -149,11 +149,11 @@ int main(int argc, char** argv) {
   //cap.set();
 
   // main loop
-  for (int i=0;;i++) {
+  for (int f=0;;f++) {
     // write time
     clock_gettime(CLOCK_MONOTONIC, &time_past);
 
-    if (cap.read(frame) == NULL) {
+    if (!cap.read(frame)) {
       continue;
     }
 
@@ -201,7 +201,7 @@ int main(int argc, char** argv) {
     // calculate fps and display
     clock_gettime(CLOCK_MONOTONIC, &time_now);
 	
-    sprintf(fps, "%.2f fps, frame: %i, time: %.3f s, l: %.2e", getFps(calcTimeDiff (time_past, time_now)), i, calcTimeDiff (time_init, time_now), learningRate);
+    sprintf(fps, "%.2f fps, frame: %i, time: %.3f s, l: %.2e", getFps(calcTimeDiff (time_past, time_now)), f, calcTimeDiff (time_init, time_now), learningRate);
     if (use_gui == true) {
 	  displayOverlay("frame", fps, 0);
 	}
